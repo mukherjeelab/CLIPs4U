@@ -1,5 +1,7 @@
 rule prepare_paralyzer_ini:
+    group: lambda wildcards: wildcards.sample
     input:
+        expand(f"{cwd}/ali/{{sample}}.aligned.mapped.sorted.sam", sample=sample_names.keys()),
         sam=lambda wildcards: f"{cwd}/ali/{wildcards.sample}.aligned.mapped.sorted.sam"
     output:
         paralyzer_ini=f"{cwd}/PARalyzer/{{sample}}.ini"
@@ -72,7 +74,9 @@ EOL
         """
         
 rule run_paralyzer:
+    group: lambda wildcards: wildcards.sample
     input:
+        expand(f"{cwd}/PARalyzer/{{sample}}.ini", sample=sample_names.keys()),
         ini_file=lambda wildcards: f"{cwd}/PARalyzer/{wildcards.sample}.ini"
     output:
         bam=f"{cwd}/PARalyzer/{{sample}}_PARalyzer_Utilized.bam",
@@ -102,7 +106,9 @@ rule run_paralyzer:
         """
         
 rule calc_conv_stats:
+    group: lambda wildcards: wildcards.sample
     input:
+        expand(f"{cwd}/PARalyzer/{{sample}}_PARalyzer_Utilized.bam.bai", sample=sample_names.keys()),
         bam=lambda wildcards: f"{cwd}/PARalyzer/{wildcards.sample}_PARalyzer_Utilized.bam",
         groups=lambda wildcards: f"{cwd}/PARalyzer/{wildcards.sample}.groups",
         clusters=lambda wildcards: f"{cwd}/PARalyzer/{wildcards.sample}.clusters",

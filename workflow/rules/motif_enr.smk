@@ -1,5 +1,7 @@
 rule motif_enrichment:
+    group: lambda wildcards: wildcards.sample
     input:
+        expand(f"{cwd}/genome_viewer_files/{{sample}}_report.txt", sample=sample_names.keys()),
         filt_bed=lambda wildcards: f"{cwd}/genome_viewer_files/{wildcards.sample}_clusters_filtered.bed"
     output:
         motif_enr_report=f"{cwd}/motif_enrichment/{{sample}}_report.txt"

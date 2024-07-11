@@ -12,6 +12,7 @@ from scripts.genomic_files_and_indexes import prepare_genomes_and_indexes
 
 # Get parpipe2 base directory (not workflow directory)
 parpipe2_dir = os.path.normpath(os.path.join(workflow.basedir, ".."))
+print(parpipe2_dir)
 cwd = workflow.workdir_init
 # get default config and update it from current config, therefore default values can be properly used
 
@@ -66,15 +67,6 @@ if not input_filenames:
     raise ValueError(f"input_filenames must be provided in config file or files must be in the working directory")
 
 # List of possible extensions
-#sample_names = {}
-#extensions = ['fq.gz', 'fq', 'fastq.gz', 'fastq']
-#for filename in input_filenames:
-#   sample_name = os.path.basename(filename).split(".")[0]
-#    for ext in extensions:
-#        if filename.endswith(ext):
-#            sample_names[sample_name] = ext
-#            break
-#print(sample_names)
 sample_names = {}
 extensions = ['fq.gz', 'fq', 'fastq.gz', 'fastq']
 for filename in input_filenames:
@@ -89,6 +81,20 @@ elif int(params['umi']) > 0:
     umi_param = f"| fastx_trimmer -f {int(params['umi']) + 1}"
 else:
     umi_param = f"| fastx_trimmer -t {int(params['umi'])}"
+    
+if params["organism"] == "hs":
+    eff_size = 2913022398
+elif params["organism"] == "mm":
+    eff_size = 2652783500
+    
+tar_gz_path = os.path.join(parpipe2_dir, "annotation", params["organism"], "rep_idx.tar.gz")
+outdir = os.path.join(parpipe2_dir, "annotation", params["organism"])
+
+if os.path.exists(tar_gz_path):
+    os.system(f"tar -xvzf {tar_gz_path} -C {outdir}")
+    print(f'Extracted repetitive elements index for {params["organism"]}')
+    os.remove(tar_gz_path)
+    
 
 rule all:
     input:
@@ -103,9 +109,10 @@ rule all:
         #expand(f"{cwd}/PARalyzer/{{sample}}.ini", sample=sample_names.keys()),
         #expand(f"{cwd}/PARalyzer/{{sample}}_PARalyzer_Utilized.bam.bai", sample=sample_names.keys()),
         #expand(f"{cwd}/stats/{{sample}}_clusters_conv_stats.tsv", sample=sample_names.keys()),
-        expand(f"{cwd}/genome_viewer_files/{{sample}}_clusters_unfiltered.bed", sample=sample_names.keys()),
-        #expand(f"{cwd}/genome_viewer_files/{{sample}}_report.txt", sample=sample_names.keys()),
-        #expand(f"{cwd}/motif_enrichment/{{sample}}_report.txt", sample=sample_names.keys())
+        #expand(f"{cwd}/genome_viewer_files/{{sample}}_clusters_unfiltered.bed", sample=sample_names.keys()),
+        expand(f"{cwd}/genome_viewer_files/{{sample}}_report.txt", sample=sample_names.keys()),
+        expand(f"{cwd}/motif_enrichment/{{sample}}_report.txt", sample=sample_names.keys()),
+        "final_report.html",
 
 include: "rules/genomes_indexes.smk"
 include: "rules/quality.smk"
@@ -115,6 +122,6 @@ include: "rules/remove_rep_elements.smk"
 include: "rules/alignment.smk"
 include: "rules/paralyzer.smk"
 include: "rules/annotation.smk"
-#include: "rules/bigwigs.smk"
-#include: "rules/motif_enr.smk"
-
+include: "rules/bigwigs.smk"
+include: "rules/motif_enr.smk"
+include: "rules/generate_report.smk"

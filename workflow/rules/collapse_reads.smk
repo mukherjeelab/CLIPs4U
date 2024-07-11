@@ -1,5 +1,7 @@
 rule collapse_reads:
+    group: lambda wildcards: wildcards.sample
     input:
+        expand(f"{cwd}/reads/{{sample}}_trimmed_final.fq.gz", sample=sample_names.keys()),
         trim_read=lambda wildcards: f"{cwd}/reads/{wildcards.sample}_trimmed_final.fq.gz"
     output:
         collapsed=f"{cwd}/reads/{{sample}}_trimmed_collapsed.fa"

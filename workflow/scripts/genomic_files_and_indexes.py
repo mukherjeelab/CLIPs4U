@@ -52,28 +52,21 @@ def download_and_validate_checksum(url: str, outdir: str, checksum_url: str, max
     """
     max_tries = max_repeats
     while max_tries:
+        wget.download(url, out=outdir)
         filename = url.split("/")[-1]
-        filename_fullpath = os.path.join(outdir, filename)
+        wget.download(checksum_url, out=outdir)
         checksum_filename = checksum_url.split("/")[-1]
+        filename_fullpath = os.path.join(outdir, filename)
         checksum_fullpath = os.path.join(outdir, checksum_filename)
-        try:
-            wget.download(url, out=outdir)
-            wget.download(checksum_url, out=outdir)
-            is_ok = check_checksum(filename_fullpath, checksum_fullpath, checksum_algorithm='md5')
-            if os.path.exists(checksum_fullpath): # need to delete checksum to prevent problems with other downloads
-                os.remove(checksum_fullpath)
-            if is_ok:
-                print('\nDownload successful, file validated')
-                return True
-            # cleanup in case of error
-        except Exception as error:
-            print(error)
-            if os.path.exists(filename_fullpath):
-                os.remove(filename_fullpath)
-            if os.path.exists(checksum_fullpath): # need to delete checksum to prevent problems with other downloads
-                os.remove(checksum_fullpath)
-        finally:
-            max_tries -= 1
+        is_ok = check_checksum(filename_fullpath, checksum_fullpath, checksum_algorithm='md5')
+        if os.path.exists(checksum_fullpath): # need to delete checksum to prevent problems with other downloads
+            os.remove(checksum_fullpath)
+        if is_ok:
+            print('Download successful, file validated')
+            return True
+        # cleanup in case of error
+        if os.path.exists(filename_fullpath):
+            os.remove(filename_fullpath)
     return False
 
 
@@ -92,87 +85,36 @@ def prepare_genome_and_annotation(configuration, parpipe2_dir, cwd, workflow_dir
     logdir = os.path.join(cwd, 'logs', 'genome_files')
     if not os.path.exists(logdir):
         os.makedirs(logdir, exist_ok=True)
-
-    organism = configuration.get('organism', 'human')
-    if organism.lower() in ['hs', 'homosapiens', 'homo sapiens', 'human']:
-        organism = 'hs'
-    elif organism.lower() in ['mm', 'musmusculus', 'mus musculus', 'mouse']:
-        organism = 'mm'
-    elif configuration["genome_fasta"] and configuration["genome_fasta"]:
-        print('Using custom genome, organism not known')
-    else:
-        print(f'Unknown organism {organism}!')
-        raise Exception('Unknown organism!')
-
+  
     if configuration["genome_fasta"] and configuration["genome_fasta"] != "":
         genome = configuration["genome_fasta"]
         annotation = configuration["gtf"]
         print("Genome and annotation files are provided by user")
     else:
-        if organism == 'hs':
-            genome_ver = int(configuration.get('genome_version', 45))
-            if not genome_ver:
-                genome_ver = 45
-            if genome_ver > 21:
-                genome_file = "GRCh38.primary_assembly.genome.fa"
-            elif genome_ver > 19:
-                genome_file = "GRCh38.genome.fa"
-            elif genome_ver == 17:
-                genome_file = "GRCh37.p11.genome.fa"
-            elif genome_ver == 18:
-                genome_file = "GRCh37.p12.genome.fa"
-            elif genome_ver == 19:
-                genome_file = "GRCh37.p13.genome.fa"
-            else:
-                print('Genome version too old, please switch to genome version 17 or later')
-                raise Exception('Genome version for human must be 17 or later')
-            if genome_ver > 41:
-                gtf_file = f"gencode.v{genome_ver}.primary_assembly.basic.annotation.gtf"
-            elif genome_ver > 22:
-                gtf_file = f"gencode.v{genome_ver}.primary_assembly.annotation.gtf"
-            elif genome_ver >= 17:
-                gtf_file = f"gencode.v{genome_ver}.annotation.gtf"
-            #else - exception above
-        elif organism == 'mm':
-            genome_ver = int(configuration.get('genome_version', 35))
-            if not genome_ver:
-                genome_ver = 35
-            if genome_ver > 25:
-                genome_file = "GRCm39.primary_assembly.genome.fa"
-            elif genome_ver > 4:
-                genome_file = "GRCm38.primary_assembly.genome.fa"
-            else:
-                print('Genome version too old, please switch to genome version 5 or later')
-                raise Exception('Genome version for mouse must be 5 or later')
-
-            if genome_ver > 30:
-                gtf_file = f"gencode.vM{genome_ver}.primary_assembly.basic.annotation.gtf"
-            else:
-                gtf_file = f"gencode.vM{genome_ver}.primary_assembly.annotation.gtf"
-#https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M35/gencode.vM35.annotation.gff3.gz
+        genome_file = "GRCh38.primary_assembly.genome.fa"
+        genome_ver = configuration.get('genome_version', '45')
+        if not genome_ver:
+            genome_ver = '45'
+        if int(genome_ver) > 41:
+            gtf_file = f"gencode.v{genome_ver}.primary_assembly.basic.annotation.gtf"
+        else:
+            gtf_file = f"gencode.v{genome_ver}.primary_assembly.annotation.gtf"
         
         print(f"Selected genome version is {genome_ver}")
-        genome_dir = os.path.join(outdir, organism, str(genome_ver))
-        if not os.path.exists(genome_dir):
-            os.makedirs(genome_dir)
-        genome = os.path.join(outdir, organism, str(genome_ver), genome_file)
-        annotation = os.path.join(outdir, organism, str(genome_ver), gtf_file)
-        if organism == 'hs':
-            url_genome = f"https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_{genome_ver}/{genome_file}.gz"
-            url_gtf = f"https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_{genome_ver}/{gtf_file}.gz"
-            url_checksum = f"https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_{genome_ver}/MD5SUMS"
-        elif organism == 'mm':
-            url_genome = f"https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M{genome_ver}/{genome_file}.gz"
-            url_gtf = f"https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M{genome_ver}/{gtf_file}.gz"
-            url_checksum = f"https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M{genome_ver}/MD5SUMS"
+        genome = os.path.join(outdir, genome_file)
+        annotation = os.path.join(outdir, gtf_file)
+
+        url_genome = f"https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_{genome_ver}/{genome_file}.gz"
+        url_gtf = f"https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_{genome_ver}/{gtf_file}.gz"
+        url_checksum = f"https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_{genome_ver}/MD5SUMS"
 
         # checking and downloading separately for genome and annotation
         for full_filepath, filename, url, genome_or_annotation in [
                 (genome, genome_file, url_genome, "genome"), (annotation, gtf_file, url_gtf, "annotation")]:
             if not os.path.isfile(full_filepath):
-                file_gz = os.path.join(genome_dir, f"{filename}.gz")
-                print(f"Downloading {organism} genome v.{genome_ver} {genome_or_annotation} from Gencode...\n")
-                if not download_and_validate_checksum(url, genome_dir, url_checksum):
+                file_gz = os.path.join(outdir, f"{filename}.gz")
+                print(f"Downloading GRCh38 v.{genome_ver} {genome_or_annotation} from Gencode...\n")
+                if not download_and_validate_checksum(url, outdir, url_checksum):
                     error = f"Cannot download and validate file: {url}"
                     print(error)
                     raise Exception(error)
@@ -186,7 +128,7 @@ def prepare_genome_and_annotation(configuration, parpipe2_dir, cwd, workflow_dir
                     print(f"{genome_or_annotation.capitalize()} unpacked successfully")
             else:
                 print(f'{genome_or_annotation.capitalize()} files already exist')
-    main_annot_rds = os.path.join(genome_dir, 'main_annotation.rds')
+    main_annot_rds = os.path.join(outdir, 'main_annotation.rds')
     
     if os.path.isfile(main_annot_rds) and os.path.getmtime(main_annot_rds) > os.path.getmtime(annotation):
         print('main_annotation.rds file from current gtf already exists')
@@ -195,7 +137,7 @@ def prepare_genome_and_annotation(configuration, parpipe2_dir, cwd, workflow_dir
         logfile = os.path.join(logdir, 'prep_main_rds_from_gtf.log')
         errfile = os.path.join(logdir, 'prep_main_rds_from_gtf.err')
         ann_script = os.path.join(workflow_dir, "scripts", "prepareAnnotFilesFromGtf.R")
-        ann_cmd = f"Rscript {ann_script} {genome_dir} {annotation} main > {logfile} 2> {errfile}"
+        ann_cmd = f"Rscript {ann_script} {outdir} {annotation} main > {logfile} 2> {errfile}"
         outcode = os.WEXITSTATUS(os.system(ann_cmd))
     
         if outcode == 0:     

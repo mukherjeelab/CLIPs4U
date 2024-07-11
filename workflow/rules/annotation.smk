@@ -1,5 +1,7 @@
 rule annotate_groups_and_clusters:
+    group: lambda wildcards: wildcards.sample
     input:
+        expand(f"{cwd}/stats/{{sample}}_clusters_conv_stats.tsv", sample=sample_names.keys()),
         groups=lambda wildcards: f"{cwd}/stats/{wildcards.sample}_groups_conv_stats.tsv",
         clusters=lambda wildcards: f"{cwd}/stats/{wildcards.sample}_clusters_conv_stats.tsv"
     output:

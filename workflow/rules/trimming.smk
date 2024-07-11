@@ -1,5 +1,8 @@
 rule trim_adapters_r1:
+    group: lambda wildcards: wildcards.sample
     input:
+        expand(f"{cwd}/qc/fastqc/{{sample}}_fastqc.html", sample=sample_names.keys()),
+        expand(f"{cwd}/qc/fastqc/{{sample}}_fastqc.zip", sample=sample_names.keys()),
         file=lambda wildcards: sample_names[wildcards.sample]
     output:
         trim_reads1 = f"{cwd}/reads/{{sample}}_trimmed1.fq.gz"
@@ -44,6 +47,7 @@ rule trim_adapters_r1:
 if config["cutadapt_params2"] in ["", None]:
     rule move_trimmed_files:
         input:
+            expand(f"{cwd}/reads/{{sample}}_trimmed1.fq.gz", sample=sample_names.keys()),
             trim_read=lambda wildcards: f"{cwd}/reads/{wildcards.sample}_trimmed1.fq.gz"
         output:
             trim_final=f"{cwd}/reads/{{sample}}_trimmed_final.fq.gz"
@@ -55,6 +59,7 @@ if config["cutadapt_params2"] in ["", None]:
 else:
     rule trim_adapters_r2:
         input:
+            expand(f"{cwd}/reads/{{sample}}_trimmed1.fq.gz", sample=sample_names.keys()),
             trim_read=lambda wildcards: f"reads/{wildcards.sample}_trimmed1.fq.gz"
         output:
             trim_final="{cwd}/reads/{{sample}}_trimmed_final.fq.gz"

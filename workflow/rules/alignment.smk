@@ -1,6 +1,8 @@
 if params["aligner"] in ['S', 's', 'star', 'Star', 'STAR']:
      rule genome_alignment_star:
+         group: lambda wildcards: wildcards.sample
          input:
+             expand(f"{cwd}/reads/{{sample}}_rm_rep.fa", sample=sample_names.keys()),
              rm_rep_read=lambda wildcards: f"{cwd}/reads/{wildcards.sample}_rm_rep.fa"
          output:
              aligned_sam= f"{cwd}/ali/{{sample}}.aligned.mapped.sorted.sam"
@@ -35,7 +37,9 @@ if params["aligner"] in ['S', 's', 'star', 'Star', 'STAR']:
              """
 else:
      rule genome_alignment_bowtie:
+         group: lambda wildcards: wildcards.sample
          input:
+             expand(f"{cwd}/reads/{{sample}}_rm_rep.fa", sample=sample_names.keys()),
              rm_rep_read=lambda wildcards: f"{cwd}/reads/{wildcards.sample}_rm_rep.fa"
          output:
              aligned_sam= f"{cwd}/ali/{{sample}}.aligned.mapped.sorted.sam"

@@ -1,6 +1,8 @@
 if config["rem_rep"] in ["True", True, 1, "1"]:
+    group: lambda wildcards: wildcards.sample
     rule remove_rep:
         input:
+            expand(f"{cwd}/reads/{{sample}}_trimmed_collapsed.fa", sample=sample_names.keys()),
             collapsed_read=lambda wildcards: f"{cwd}/reads/{wildcards.sample}_trimmed_collapsed.fa"
         output:
             rm_rep_read=f"{cwd}/reads/{{sample}}_rm_rep.fa",
@@ -37,7 +39,9 @@ if config["rem_rep"] in ["True", True, 1, "1"]:
             """
 else:
     rule copy_collapsed_files:
+        group: lambda wildcards: wildcards.sample
         input:
+            expand(f"{cwd}/reads/{{sample}}_trimmed_collapsed.fa", sample=sample_names.keys()),
             collapsed_read=lambda wildcards: f"{cwd}/reads/{wildcards.sample}_trimmed_collapsed.fa"
         output:
             rm_rep_read=f"{cwd}/reads/{{sample}}_rm_rep.fa"
