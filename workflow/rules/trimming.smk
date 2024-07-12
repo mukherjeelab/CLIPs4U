@@ -60,13 +60,13 @@ else:
     rule trim_adapters_r2:
         input:
             expand(f"{cwd}/reads/{{sample}}_trimmed1.fq.gz", sample=sample_names.keys()),
-            trim_read=lambda wildcards: f"reads/{wildcards.sample}_trimmed1.fq.gz"
+            trim_read=lambda wildcards: f"{cwd}/reads/{wildcards.sample}_trimmed1.fq.gz"
         output:
-            trim_final="{cwd}/reads/{{sample}}_trimmed_final.fq.gz"
+            trim_final=f"{cwd}/reads/{{sample}}_trimmed_final.fq.gz"
         params:
             cutadapt_params=params['cutadapt_params2']
         log:
-           out_log = f"{cwd}/logs/cutadapt_r2/{{sample}}.log",
+            out_log = f"{cwd}/logs/cutadapt_r2/{{sample}}.log",
             err_log = f"{cwd}/logs/cutadapt_r2/{{sample}}.err"
         shell:
             """

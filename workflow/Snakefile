@@ -64,7 +64,9 @@ else:
     input_filenames = [os.path.join(cwd, x) for x in input_filenames if not (x.endswith('.yml') or x.endswith('.yaml') or x.endswith('.json'))]
     input_filenames = [x for x in input_filenames if not os.path.isdir(x)]
 if not input_filenames:
-    raise ValueError(f"input_filenames must be provided in config file or files must be in the working directory")
+    input_filenames = [os.path.join(parpipe2_dir, "test_data", "ZFP36.fq.gz")]
+    print("Running CLIPs4U with test data file")
+    #raise ValueError(f"input_filenames must be provided in config file or files must be in the working directory")
 
 # List of possible extensions
 sample_names = {}
@@ -80,7 +82,7 @@ if params['umi'] == '' or int(params['umi']) == 0:
 elif int(params['umi']) > 0:
     umi_param = f"| fastx_trimmer -f {int(params['umi']) + 1}"
 else:
-    umi_param = f"| fastx_trimmer -t {int(params['umi'])}"
+    umi_param = f"| fastx_trimmer -t {abs(int(params['umi']))}"
     
 if params["organism"] == "hs":
     eff_size = 2913022398

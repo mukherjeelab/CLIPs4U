@@ -20,6 +20,9 @@ library(plyranges)
 library(tidyverse)
 library(magrittr)
 library(DT)
+if (!requireNamespace("fastqcr", quietly = TRUE)) {
+  devtools::install_github("kassambara/fastqcr@e7b2fe7a616e6c10592240db0aff3551fb021786")
+}
 library(fastqcr)
 library(metagene2)
 library(universalmotif)

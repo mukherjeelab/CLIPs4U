@@ -224,7 +224,7 @@ if (nrow(clust_file) > 0) {
   merged_annot_stand <- keepSeqlevels(merged_annot, standard_chroms, pruning.mode = "coarse")
   txdb_stand <- lapply(txdbFeatures, function(x) keepSeqlevels(x, standard_chroms, pruning.mode = "coarse"))
   clust_file_gr2 <- makeGRangesFromDataFrame(clust_file, keep.extra.columns = TRUE) %>%
-    keepSeqlevels(., standard_chroms, pruning.mode = "coarse")
+    keepSeqlevels(., standardChromosomes(.), pruning.mode = "coarse")
   cats <- plyr::count(clust_final_df_full$gene_type) %>%
     filter(freq/sum(freq) > .01)
   cats_mrna <- plyr::count(clust_final_df_full$mRNA_region) %>%

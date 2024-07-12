@@ -13,8 +13,8 @@ if params["aligner"] in ['S', 's', 'star', 'Star', 'STAR']:
              params=params["star_map_params"],
              t=num_cores
          log:
-             out_log = f"{cwd}logs/star_ali/{{sample}}.log",
-             err_log = f"{cwd}logs/star_ali/{{sample}}.err"
+             out_log = f"{cwd}/logs/star_ali/{{sample}}.log",
+             err_log = f"{cwd}/logs/star_ali/{{sample}}.err"
          shell:
              """
              threads="{params.t}"
