@@ -1,9 +1,9 @@
 Most of the parameters for CLIPs4U run have to be set up in your custom [YAML](https://en.wikipedia.org/wiki/YAML) file (for example `config.yaml`). 
 You can edit `config.yaml`, which is an empty config file in any text editor and set all parameters.
 
-NOTE: only 3'adapter and 5'adapter sequences are absolutely required.
+**NOTE:** only 3'adapter and 5'adapter sequences are absolutely required.
 
-NOTE: when you do not provide path to your input file(s) CLIPs4U will run with test dataset and your config file.
+**NOTE:** when you do not provide path to your input file(s) CLIPs4U will run with test dataset (ZFP36.fq.gz) and your config file.
 
 The configuration file contains seven main sections:
 * exec and input paths and hardware settings
@@ -29,7 +29,7 @@ Section from default config is shown below.
 Genome file and genomic annotations contains five fields. The first one specify organism. Right now you can choose human or mouse (`"hs"` or `"mm"`). If you want to run your analysis with data from other organism(s) open an issue and|or write an e-mail to marcin.sajek@gmail.com and we will prepare the data and|or modify scripts.
 `genome_fasta` and `gtf` fields contain paths to genome sequence and gtf files. When empty (`""`) both genome and its annotation will be downloaded from gencode. Gencode version of genome and gtf is specified in the `genome_version` field. The default version for human genome is 45, and for mouse - 35. 
 
-NOTE: Gencode versions for both organism must be greater than 4
+**NOTE:** Gencode versions for both organism must be greater than 4
 
 `annot_rank` field contains path to annotation ranking file. If empty, default annot rank file will be used. This file contain categories from `gene_type` field of gtf file, and if the peak is mapping to region with multiple annotations, lowest rank is chosen. The most abundant RNA types have highest ranks.
 
@@ -55,9 +55,9 @@ Section from default config is shown below.
     'umi' : "", #(OPTIONAL) leave empty if you don't have UMIs, for 5' UMIs positive integer equal UMI length, if 3'UMIs - negative integer equal UMI length
 ```
 
-TIP: ```-j 0 ``` in cutadapt determined automatically numbers of available threads.
+**TIP:** ```-j 0 ``` in cutadapt determined automatically numbers of available threads.
 
-TIP: Reads that are to long can cause further issues with PARalyzer. Consider setting a max read length parameter, e.g. `-M 50`.
+**TIP:** Reads that are to long can cause further issues with PARalyzer (e.g. reported [here](https://github.com/ohlerlab/PARpipe/issues/6)). Consider setting a max read length parameter, e.g. `-M 50`.
 
 Removing repetitive elements section is skipped with default settings. User can perform removing repetitive element before genome alignent by setting `rem_rep` to `True`. CLIPs4U is using [STAR](https://raw.githubusercontent.com/alexdobin/STAR/master/doc/STARmanual.pdf) for this task. It is using default repetitive elments index and STAR parameters if `rep_idx` and `star_rem_reps_params` are empty.
 
@@ -106,7 +106,7 @@ Section from default config is shown below.
 ```
 The last section contains motif enrichment parameters. Motif enrichmantis performed by one of the tools from [MEME](https://meme-suite.org/meme/). Default value for `motif_enrichment_method` is [meme](https://meme-suite.org/meme/tools/meme), user can also choose [dreme](https://meme-suite.org/meme/doc/dreme-tutorial.html) or [streme](https://meme-suite.org/meme/doc/streme-tutorial.html). `motif_enrichment_params` field should be filled with parameters specific for selected method.
 
-NOTE: For motif enrichment analysis keep alphabet as `-dna`. Do not switch it to `-rna`. Final motifs will be changed to RNA alphabet automatically in the next steps.
+**NOTE:** For motif enrichment analysis keep alphabet as `-dna`. Do not switch it to `-rna`. Final motifs will be changed to RNA alphabet automatically in the next steps.
 
 Section from default config is shown below.
 ```

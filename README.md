@@ -35,7 +35,7 @@ conda env create --name clips4u --file env.yml
 ```
 Where clips4u is your name of the environment.
 
-NOTE: creating environment will take some time, a few hundred packages must be downloaded and installed.
+**NOTE:** creating environment will take some time, a few hundred packages must be downloaded and installed.
 
 The environment then needs to be activated in order to run CLIPs4U:
 ```
@@ -70,34 +70,34 @@ Steps:
 
 
 ## Usage
-First, install git-lfs, to ensure that test data will be correctly downloaded.
+**First,** install git-lfs, to ensure that test data will be correctly downloaded.
 Dependent on your system git-lfs can be installed using the following commands:
-###Ubuntu/Debian
+### Ubuntu/Debian
 ```
 sudo apt-get update
 sudo apt-get install git-lfs
 ```
-###Fedora
+### Fedora
 ```
 sudo dnf update
 sudo dnf install git-lfs
 ```
-###CentOS7/RHEL7
+### CentOS7/RHEL7
 ```
 sudo yum install epel-release
 sudo yum install git-lfs
 ```
-###CentOS8/RHEL8
+### CentOS8/RHEL8
 ```
 sudo dnf install epel-release
 sudo dnf install git-lfs
 ```
-###openSUSE
+### openSUSE
 ```
 sudo zypper refresh
 sudo zypper install git-lfs
 ```
-###Arch linux
+### Arch linux
 ```
 sudo pacman -S git-lfs
 ```
@@ -107,7 +107,7 @@ Then initialize git-lfs using:
 git lfs install
 ```
 
-Second clone the repository using: 
+**Second,** clone the repository using: 
 ```
 gh repo clone mukherjeelab/CLIPs4U
 ```
@@ -131,21 +131,21 @@ total 4,5K
 ```
 and ZFP36.fq.gz has only 134 B download it manually from [repository](https://github.com/mukherjeelab/CLIPs4U/blob/main/test_data/ZFP36.fq.gz) and move to `/path/to/CLIPs4U/test_data`.
 
-Third, create directory for your project, e.g.:
+**Third,** create directory for your project, e.g.:
 ```
 mkdir my_parclip_dir
 ```
 
-Fourth, prepare your config YAML file. 
+**Fourth,** prepare your config YAML file. 
 It can be located anywhere, but if you put it in your directory it will be automatically detected.
 Parameters not specified in your config file will be set to default values using default_config file.
 
 Please note, that parameters that will be shared between all analyses might be put in the (clips4u)/config/default_config.yaml.
 File default_config.yaml contains predefined default parameters, and you are free to change them. 
 
-Fifth, create and activate conda environment as described above.
+**Fifth,** create and activate conda environment as described above.
 
-Running analysis
+**Running analysis**
 specify clips4u snakefile using flag "--snakefile",
 specify your directory using flag "--directory" if it is not current working directory (if you are not in this directory),
 specify your configfile using flag "--configfile" if configfile is located outside your directory or your directory contains multiple YAML files,
@@ -170,12 +170,12 @@ Every run generates multiple output files. The most important one are:
 * final report in html format `workdir/final_report.html`, containing summary tables and plots from various steps of analysis in user friendly format, plots from final report in pdf format can be also found in `workdir/plots`
 * bigWig files for visualization of the clusters in genomic viewers `workdir/genome_viewer_files`
 
-NOTE: There are four bigWig (bw) files for every sample - filtered and unfiltered for positive and negative strand. Unfiltered files contain all clusters, filtered ones clusters with conversion specificity > 0.6 based. This value was set based on our previous [study](https://academic.oup.com/nar/article/47/2/570/5230955).
+**NOTE:** There are four bigWig (bw) files for every sample - filtered and unfiltered for positive and negative strand. Unfiltered files contain all clusters, filtered ones clusters with conversion specificity > 0.6 based. This value was set based on our previous [study](https://academic.oup.com/nar/article/47/2/570/5230955).
 
 
-NOTE: For reproducibility purposes final_config.json will be created in your working directory. This file will contain all default and computed parameters alongside user defined parameters.
+**NOTE:** For reproducibility purposes final_config.json will be created in your working directory. This file will contain all default and computed parameters alongside user defined parameters.
 
-NOTE: Example output files for test data can be found in `test_out`. Please compare your output from test run with these files. Consider you will have more output files. In test_out we are storing only the most important ones.
+**NOTE:** Example output files for test data can be found in `test_out`. Please compare your output from test run with these files. Consider you will have more output files. In test_out we are storing only the most important ones.
 
 ## Contributors
 * Marcin Sajek
