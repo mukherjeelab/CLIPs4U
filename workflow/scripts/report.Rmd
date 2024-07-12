@@ -1,0 +1,662 @@
+---
+title: "PAR-PIPE2 report"
+author: "Marcin Sajek"
+date: "`r Sys.Date()`"
+output: html_document
+params:
+  root_dir: ""
+  annot: ""
+  conv: ""
+  motif_method: ""
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_knit$set(root.dir = params$root_dir)
+```
+
+```{r loading_libraries, echo=FALSE, warning=FALSE, message=FALSE}
+library(plyranges)
+library(tidyverse)
+library(magrittr)
+library(DT)
+if (!requireNamespace("fastqcr", quietly = TRUE)) {
+  devtools::install_github("kassambara/fastqcr@e7b2fe7a616e6c10592240db0aff3551fb021786")
+}
+library(fastqcr)
+library(metagene2)
+library(universalmotif)
+library(RCAS)
+library(ggseqlogo)
+library(ggpubr)
+library(htmltools)
+```
+
+```{r functions, echo=FALSE, warning=FALSE, message=FALSE}
+convert_dna_to_rna <- function(motif) {
+  if (!is.null(motif@motif)) {
+  # Modify the matrix
+  motif_matrix <- motif@motif
+    
+  # Replace the T row with the U row in the matrix
+  if ("T" %in% rownames(motif_matrix)) {
+    rownames(motif_matrix)[rownames(motif_matrix) == "T"] <- "U"
+  }
+    
+  if ("T" %in% colnames(motif_matrix)) {
+    colnames(motif_matrix)[colnames(motif_matrix) == "T"] <- "U"
+  }
+    
+  # Assign the modified matrix back to the motif
+  motif@motif <- motif_matrix
+    
+  # Modify the consensus string
+  motif@consensus <- gsub("T", "U", motif@consensus)
+    
+  # Modify the motif name
+  motif@name <- gsub("T", "U", motif@name)
+    
+  # Modify the motif alphabet
+  motif@alphabet <- "RNA"
+    
+  # Modify the motif name to the number of target sites
+  motif@name <- paste0("#motifs: ", as.character(motif@nsites))
+  }
+  return(motif)
+}
+```
+
+
+```{r workdir_and_samples, echo=FALSE, warning=FALSE, message=FALSE}
+cat("Working directory:", getwd(), "\n")
+if (!dir.exists("plots")) {
+  dir.create("plots")
+}
+samples <- gsub("_trimmed_collapsed.fa", "", list.files(path = "reads", pattern = "_trimmed_collapsed.fa"))
+main_annot <- readRDS(params$annot)
+#main_annot <- readRDS("genome/main_annotation.rds")
+qc_dir <- "qc/fastqc"
+cat("Samples in the analysis:\n", samples, "\n")
+```
+
+## { .tabset}
+
+### QC raw { .tabset}
+
+```{r fastqc_raw, results='asis', echo=FALSE, warning=FALSE, message=FALSE}
+for (sample in samples){
+  cat("#### ", sample, "\n")
+  cat("\n")
+  qc_sample <- qc_read(paste0(qc_dir, "/", sample, "_fastqc.zip"))
+  print(qc_plot(qc_sample, "Per sequence GC content"))
+  cat('\n')
+  print(qc_plot(qc_sample, "Per base sequence quality"))
+  cat('\n')
+  print(qc_plot(qc_sample, "Per sequence quality scores"))
+  cat('\n')
+  print(qc_plot(qc_sample, "Per base sequence content"))
+  cat('\n')
+  print(qc_plot(qc_sample, "Sequence duplication levels"))
+  cat('\n')
+  print(qc_plot(qc_sample, "Overrepresented sequences"))
+  cat('\n')
+  print(qc_plot(qc_sample, "Adapter Content"))
+  cat('\n')
+  cat("\n")
+}
+cat("#### Summary\n")
+cat("\n")
+qc <- qc_aggregate(qc_dir)
+datatable_html <- DT::datatable(qc)
+saveWidget(datatable_html, "datatable_summary.html", selfcontained = TRUE)
+includeHTML("datatable_summary.html")
+#cat(paste0('<div style="overflow-x: auto; overflow-y: auto;">', paste(readLines("datatable_summary.html"), collapse = "\n"), '</div>'))
+cat('\n')
+cat("\n")
+```
+
+### mismatches statistics { .tabset}
+
+```{r mismatches_stat, results='asis', echo=FALSE, warning=FALSE, message=FALSE}
+for (sample in samples) {
+  cat("#### ", sample, "\n")
+  df <- read_tsv(paste0('stats/', sample, '_groups_conv_stats_annotated.tsv'))
+  
+  if (nrow(df) == 0) {
+    cat("##### No groups detected for ", sample, "\n")
+  } else {
+    cat("##### Mismatches summary in groups for", sample, "\n")
+    conv = params$conv
+    #conv = "T>C"
+    conv = gsub('>', '_', conv)
+    general_mm <- df %>%
+      dplyr::select(c("GroupID", "gene_type", "mRNA_region", "A_C":"A_del", "C_A":"C_del", "G_A":"G_del", "T_A":"T_del")) %>%
+      pivot_longer(cols = c("A_C":"T_del"), names_to = "mismatch", values_to = "counts")
+      
+    p <- ggbarplot(general_mm %>%
+               group_by(mismatch) %>%
+               summarise(counts = sum(counts)) %>%
+               mutate(color = factor(ifelse(mismatch==conv, "red", "gray"))),
+               x = 'mismatch', y = 'counts', fill = 'color',
+               palette = c('gray', 'red'), main = 'All groups') +
+        theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+        rremove('xlab') +
+        rremove('legend')
+    saveRDS(p, paste0("plots/mm_stats_general_", sample, ".rds"))
+    print(p)
+    cat("\n")  
+    
+    categories <- plyr::count(general_mm$gene_type) %>%
+      mutate(perc = freq/sum(freq)*100) %>%
+      arrange(desc(perc)) %>%
+      filter(perc > 1) %>%
+      pull(x)
+    
+    for (category in categories) {
+      if (category == "protein_coding") {
+        plot_df <- general_mm %>%
+          filter(gene_type == category)
+        p1 <- ggbarplot(plot_df %>%
+               group_by(mismatch) %>%
+               summarise(counts = sum(counts)) %>%
+               mutate(color = factor(ifelse(mismatch==conv, "red", "gray"))),
+               x = 'mismatch', y = 'counts', fill = 'color',
+               palette = c('gray', 'red'), main = 'mRNA') +
+              theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+              rremove('xlab') +
+              rremove('legend')
+        saveRDS(p1, paste0("plots/mm_stats_mRNA_", sample, ".rds"))
+        print(p1)
+        cat("\n")  
+        
+        subcats <- plyr::count(plot_df$mRNA_region) %>%
+          na.omit() %>%
+          filter(freq > 0) %>%
+          pull(x)
+        
+        for (subcat in subcats) {
+          p2 <- ggbarplot(plot_df %>%
+                            filter(mRNA_region == subcat) %>%
+                            group_by(mismatch) %>%
+                            summarise(counts = sum(counts)) %>%
+                            mutate(color = factor(ifelse(mismatch==conv, "red", "gray"))),
+                   x = 'mismatch', y = 'counts', fill = 'color',
+                   palette = c('gray', 'red'), main = subcat) +
+                   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+                   rremove('xlab') +
+                   rremove('legend')
+          saveRDS(p2, paste0("plots/mm_stats_", subcat,"_", sample, ".rds"))
+          print(p2)
+        }
+      } else {
+        plot_df <- general_mm %>%
+          filter(gene_type == category)
+        p3 <- ggbarplot(plot_df %>%
+               group_by(mismatch) %>%
+               summarise(counts = sum(counts)) %>%
+               mutate(color = factor(ifelse(mismatch==conv, "red", "gray"))),
+               x = 'mismatch', y = 'counts', fill = 'color',
+               palette = c('gray', 'red'), main = category) +
+              theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+              rremove('xlab') +
+              rremove('legend')
+        saveRDS(p3, paste0("plots/mm_stats_", category,"_", sample, ".rds"))
+        print(p3)
+        cat("\n")  
+      }
+    }
+  }
+}
+```
+
+### motif enrichment { .tabset}
+
+```{r motif_enr, results='asis', echo=FALSE, warning=FALSE, message=FALSE}
+for (sample in samples) {
+  cat("#### ", sample, "\n")
+  
+  if ((dir.exists(paste0("motif_enrichment/", sample, "_motif_enr")))) {
+    cat("##### Enriched motifs with e-value < 0.05", "\n")
+    motif_method = params$motif_method
+    #motif_method = 'meme'
+    motifs <- read_meme(paste0('motif_enrichment/', sample, '_motif_enr/', motif_method, '.txt'))
+    # Apply convert_dna_to_rna function to each motif
+    rna_motifs <- lapply(motifs, convert_dna_to_rna)
+
+    if (length(rna_motifs) == 0) {
+      cat("##### 0 enriched motifs above cutoff detected")
+    } else if (length(rna_motifs) == 1) {
+      nsites <- sapply(rna_motifs, function(motif) motif@nsites)
+      cat("##### #motifs: ", nsites)
+      cat("\n")
+    }
+    motif_plot <- view_motifs(rna_motifs, tryRC = FALSE, show.names = TRUE, names.pos = 'right') +
+      ggplot2::theme(
+        axis.text.x = ggplot2::element_text(angle = 90, hjust = 1)
+      )
+    saveRDS(motif_plot, paste0("plots/motif_enr_", sample, ".rds"))
+    print(motif_plot)
+    cat("\n")
+  } else {
+    cat("##### Motif enrichment analysis was not performed for ", sample, "\n")
+    cat("##### Not enough clusters detected in ", sample, "\n")
+  }
+}
+```
+
+### reads processing and mapping { .tabset}
+
+```{r reads_and_mapping, results='asis', echo=FALSE, warning=FALSE, message=FALSE}
+cat("#### Summary\n")
+cat("\n")
+
+summary_df <- data.frame(`sample id` = c("raw reads", "reads with adapters", "too short reads", "passed reads", "collapsed reads", "mapped reads total", "unmapped reads total", "unmapped reads too many multimaps", "PARalyzer groups", "PARalyzer clusters"))
+for (sample in samples) {
+  rr <- qc_read(paste0(qc_dir, "/", sample, "_fastqc.zip"))$basic_statistics %>%
+    filter(Measure == "Total Sequences") %>% 
+    pull(Value) %>% 
+    as.numeric()
+  ar_path <- paste0("logs/cutadapt_r1/", sample, ".log")
+  ar <- as.numeric(system(paste("grep 'Reads with adapters:'", ar_path, "| sed 's/ //g' | sed 's/(/:/' | cut -f 2 -d : | sed 's/,//g'"), intern = TRUE))
+  sr <- as.numeric(system(paste("grep 'Reads that were too short:'", ar_path, "| sed 's/ //g' | sed 's/(/:/' | cut -f 2 -d : | sed 's/,//g'"), intern = TRUE))
+  pr <- as.numeric(system(paste("grep 'Reads written (passing filters):'", ar_path, "| sed 's/ //g' | sed 's/(/:/g' | cut -f 3 -d : | sed 's/,//g'"), intern = TRUE))
+  cr_path <- paste0("reads/", sample, "_trimmed_collapsed.fa")
+  cr <- as.numeric(system(paste("grep -c '^>'", cr_path), intern = TRUE))
+  gr <- read_csv(paste0("PARalyzer/", sample, ".groups")) %>%
+    nrow()
+  cl <- read_csv(paste0("PARalyzer/", sample, ".clusters")) %>%
+    nrow()
+  if (dir.exists("logs/bowtie_ali")) {
+    mr_path <- paste0("logs/bowtie_ali/", sample, ".err")
+    mr <- as.numeric(system(paste("sed -n '3p'", mr_path, "| cut -f 8 -d ' '"), intern = TRUE))
+    ur <- as.numeric(system(paste("sed -n '4p'", mr_path, "| cut -f 7 -d ' '"), intern = TRUE))
+    umr <- as.numeric(system(paste("sed -n '5p'", mr_path, "| cut -f 9 -d ' '"), intern = TRUE))
+  } else {
+    mr_path <- paste0("ali/", sample, ".Log.final.out")
+    mr1 <- as.numeric(system(paste("grep 'Uniquely mapped reads number'", mr_path, "| sed 's/ //g' | cut -f 2"), intern = TRUE))
+    mr2 <- as.numeric(system(paste("grep 'Number of reads mapped to multiple loci'", mr_path, "| sed 's/ //g' | cut -f 2"), intern = TRUE))
+    umr <- as.numeric(system(paste("grep 'Number of reads mapped to too many loci'", mr_path, "| sed 's/ //g' | cut -f 2"), intern = TRUE))
+    ur1 <- as.numeric(system(paste("grep 'Number of reads unmapped: too many mismatches'", mr_path, "| sed 's/ //g' | cut -f 2"), intern = TRUE))
+    ur2 <- as.numeric(system(paste("grep 'Number of reads unmapped: too short'", mr_path, "| sed 's/ //g' | cut -f 2"), intern = TRUE))
+    ur3 <- as.numeric(system(paste("grep 'Number of reads unmapped: other'", mr_path, "| sed 's/ //g' | cut -f 2"), intern = TRUE))
+    mr <- mr1 + mr2 - umr
+    ur <- ur1 + ur2 + ur3 + umr
+  }
+  stat_col <- c(rr, ar, sr, pr, cr, mr, ur, umr, gr, cl) %>%
+    enframe() %>%
+    dplyr::select(value) %>%
+    set_colnames(sample)
+  summary_df <- cbind(summary_df, stat_col)
+} 
+
+# Save the summary as an HTML file
+summary_html <- DT::datatable(summary_df)
+saveWidget(summary_html, "summary_stats.html", selfcontained = TRUE)
+includeHTML("summary_stats.html")
+
+for (sample in samples) {
+  cat("#### ", sample, "\n")
+  cat("\n")
+  
+  reads_df <- summary_df %>%
+    dplyr::select(c(1, all_of(sample))) %>%
+    set_colnames(c("id", "counts")) %>%
+    filter(id %in% c("raw reads", "reads with adapters", "too short reads", "passed reads", "collapsed reads")) %>%
+    mutate(fraction = counts / counts[1])
+  ali_df <- summary_df %>%
+    dplyr::select(c(1, all_of(sample))) %>%
+    set_colnames(c("id", "counts")) %>%
+    filter(id %in% c("mapped reads total", "unmapped reads total", "unmapped reads too many multimaps", "PARalyzer groups")) %>%
+    mutate(fraction = counts / counts[1])
+  cl_df <- summary_df %>%
+    dplyr::select(c(1, all_of(sample))) %>%
+    set_colnames(c("id", "counts")) %>%
+    filter(id %in% c("PARalyzer groups", "PARalyzer clusters")) %>%
+    mutate(fraction = counts / counts[1])
+
+  # Generate plots
+  reads_cts_plt <- ggbarplot(reads_df, x = 'id', y = 'counts',
+                             fill = 'red', main = "Reads Processing") +
+    rremove('xlab') +
+    theme(text = element_text(size = 8)) +
+    theme(axis.text.x = element_text(angle = 60, hjust = 1))
+  reads_frac_plt <- ggbarplot(reads_df, x = 'id', y = 'fraction',
+                              fill = 'red', main = 'Reads Processing',
+                              ylab = 'Fraction') +
+    rremove('xlab') +
+    theme(text = element_text(size = 8)) +
+    theme(axis.text.x = element_text(angle = 60, hjust = 1))
+  ali_cts_plt <- ggbarplot(ali_df, x = 'id', y = 'counts',
+                           fill = 'green', main = 'Alignment') +
+    rremove('xlab') +
+    theme(text = element_text(size = 8)) +
+    theme(axis.text.x = element_text(angle = 60, hjust = 1))
+  ali_frac_plt <- ggbarplot(ali_df, x = 'id', y = 'fraction',
+                            fill = 'green', main = 'Alignment',
+                            ylab = 'Fraction') +
+    rremove('xlab') +
+    theme(text = element_text(size = 8)) +
+    theme(axis.text.x = element_text(angle = 60, hjust = 1))
+  cl_cts_plt <- ggbarplot(cl_df, x = 'id', y = 'counts',
+                          fill = 'blue', main = 'Cluster Calling') +
+    rremove('xlab') +
+    theme(text = element_text(size = 8)) +
+    theme(axis.text.x = element_text(angle = 60, hjust = 1))
+  cl_frac_plt <- ggbarplot(cl_df, x = 'id', y = 'fraction',
+                           fill = 'blue', main = 'Cluster Calling',
+                           ylab = 'Fraction') +
+    rremove('xlab') +
+    theme(text = element_text(size = 8)) +
+    theme(axis.text.x = element_text(angle = 60, hjust = 1))
+
+  # Arrange and save plots
+  cts <- ggarrange(reads_cts_plt, ali_cts_plt, cl_cts_plt, nrow = 1, align = 'hv')
+  frac <- ggarrange(reads_frac_plt, ali_frac_plt, cl_frac_plt, nrow = 1, align = 'hv')
+
+  cat("\n")
+  cat("##### Counts \n")
+  cat("\n")
+  print(cts)
+  cat("\n")
+  cat("\n")
+  cat("##### Fraction \n")
+  cat("\n")
+  print(frac)
+  cat("\n")
+  cat("\n")
+  
+  saveRDS(cts, paste0("plots/reads_and_mapping_counts_", sample, ".rds"))
+
+  saveRDS(frac, paste0("plots/reads_and_mapping_fractions_", sample, ".rds"))
+}
+```
+
+### clusters annotation and conversions { .tabset}
+
+```{r clust_annot_conv, results='asis', echo=FALSE, warning=FALSE, message=FALSE}
+cat("#### Summary\n")
+cat("\n")
+gene_types <- c()
+for (sample in samples) {
+  gene_type_vec <- read_tsv(paste0("stats/", sample, "_clusters_conv_stats_annotated.tsv")) %>%
+    group_by(gene_type) %>%
+    count(gene_type) %>%
+    arrange(-n) %>%
+    dplyr::select(gene_type) %>%
+    deframe()
+  gene_types <- c(gene_types, gene_type_vec)
+}
+gene_types_df <- gene_types %>%
+  enframe() %>%
+  dplyr::select(value) %>%
+  set_colnames("gene_type")
+for (sample in samples) {
+  df <- read_tsv(paste0("stats/", sample, "_clusters_conv_stats_annotated.tsv"))
+  df_clusters <- df %>%
+    group_by(gene_type) %>%
+    count(gene_type) %>%
+    arrange(-n) %>%
+    set_colnames(c("gene_type", paste0(sample, "_clusters")))
+  df_genes <- df %>%
+    group_by(gene_type) %>%
+    distinct(gene_name) %>%
+    summarise(n = n())  %>%
+    arrange(-n) %>%
+    set_colnames(c("gene_type", paste0(sample, "_genes")))
+  gene_types_df <- left_join(gene_types_df, df_clusters) %>%
+    left_join(., df_genes)
+}
+
+gene_types_df_final <- gene_types_df %>%
+  replace(is.na(.), 0)
+gene_types_html <- DT::datatable(gene_types_df_final)
+saveWidget(gene_types_html, "gene_types.html", selfcontained = TRUE)
+includeHTML("gene_types.html")
+
+for (sample in samples) {
+  cat("#### ", sample, "\n")
+  ct_df <- gene_types_df_final %>%
+    dplyr::select(c(1, paste0(sample, "_clusters"))) %>%
+    set_colnames(c("gene_type", "counts")) %>%
+    filter(counts/sum(counts) > .01) %>%
+    arrange(desc(counts))
+  cat_plt <- ggbarplot(ct_df, x = 'gene_type', y = 'counts', fill = 'gray',
+                       main = "Categories > 1% of clusters") +
+    rremove("xlab") +
+    theme(text = element_text(size = 8)) +
+    theme(axis.text.x = element_text(angle = 60, hjust = 1))
+  saveRDS(cat_plt, paste0("plots/clusters_categories_", sample, ".rds"))
+
+   
+  conv_df <- read_tsv(paste0("stats/", sample, "_clusters_conv_stats_annotated.tsv")) %>%
+    filter(gene_type %in% ct_df$gene_type) %>%
+    mutate(mRNA_region = ifelse(gene_type == "protein_coding", mRNA_region, 0)) %>%
+    filter(is.na(mRNA_region) == FALSE)
+  conv_plt <- ggboxplot(conv_df, x = 'gene_type' , y = 'conversion_specificity',
+                        ylab = "conversion specificity")  +
+    theme(text = element_text(size = 8)) +
+    theme(axis.text.x = element_text(angle = 60, hjust = 1)) +
+    geom_hline(yintercept = 0.6, linetype = "dashed") +
+    rremove("xlab")
+  saveRDS(conv_plt, paste0("plots/clusters_categories_conversion_stats_", sample, ".rds"))
+   
+  if (file.exists(paste0('stats/', sample, '_rand_all.tsv'))) {
+    rand_df <- read_tsv(paste0('stats/', sample, '_rand_all.tsv'))
+    rand_plt <- ggdotplot(rand_df, x = "x", y = "log2FC", binwidth = .1, fill = "black", size = 1,
+                      ylab = "log2(PAR-CLIP clusters/random regions)") + 
+      geom_hline(yintercept = 1, linetype = "dashed") +
+      theme(axis.text.x = element_text(angle = 60, hjust = 1)) +
+      rremove("xlab")
+    saveRDS(rand_plt, paste0("plots/clusters_categories_enrichment_", sample, ".rds"))
+     
+  }
+  
+  cat("##### Clusters categories")
+  cat("\n")
+  print(cat_plt)
+  cat("\n")
+  cat("\n")
+  if (exists("rand_plt")) {
+    cat("##### Enrichment over randomized regions")
+    cat("\n")
+    print(rand_plt)
+    cat("\n")
+    cat("\n")
+  }
+  cat("##### Conversion specificity")
+  cat("\n")
+  cat("\n")
+  print(conv_plt)
+  cat("\n")
+  cat("\n")
+  
+  if ("protein_coding" %in% ct_df$gene_type) {
+    df_mrna <- read_tsv(paste0("stats/", sample, "_clusters_conv_stats_annotated.tsv")) %>%
+      filter(gene_type == "protein_coding" & is.na(mRNA_region) == FALSE) %>%
+      group_by(mRNA_region) %>%
+      count(mRNA_region) %>%
+      arrange(-n)
+    cat_plt_mrna <- ggbarplot(df_mrna, x = 'mRNA_region', y = 'n', fill = 'gray', ylab = "counts") +
+      rremove("xlab") +
+      theme(text = element_text(size = 8)) +
+      theme(axis.text.x = element_text(angle = 60, hjust = 1))
+    saveRDS(cat_plt_mrna, paste0("plots/clusters_categories_mrna_", sample, ".rds"))
+     
+    conv_plt_mrna <- ggboxplot(conv_df %>% 
+                                 filter(gene_type == "protein_coding" & is.na(mRNA_region) == FALSE), 
+                               x = 'mRNA_region' , y = 'conversion_specificity',
+                               ylab = "conversion specificity")  +
+      theme(text = element_text(size = 8)) +
+      theme(axis.text.x = element_text(angle = 60, hjust = 1)) +
+      geom_hline(yintercept = 0.6, linetype = "dashed") +
+      rremove("xlab")
+    saveRDS(conv_plt_mrna, paste0("plots/clusters_categories_mrna_conversion_stats_", sample, ".rds"))
+     
+    if (file.exists(paste0('stats/', sample, '_rand_mrna.tsv'))) {
+      rand_df_mrna <- read_tsv(paste0('stats/', sample, '_rand_mrna.tsv'))
+      rand_plt_mrna <- ggdotplot(rand_df_mrna, x = "x", y = "log2FC", binwidth = .1, fill = "black", size = 1,
+                          ylab = "log2(PAR-CLIP clusters/random regions)") + 
+        geom_hline(yintercept = 1, linetype = "dashed") +
+        theme(axis.text.x = element_text(angle = 60, hjust = 1)) +
+        rremove("xlab")
+      saveRDS(rand_plt_mrna, paste0("plots/clusters_categories_mrna_enrichment_", sample, ".rds"))
+       
+    }
+    
+    cat("##### mRNA regions \n")
+    print(cat_plt_mrna)
+    cat("\n")
+    cat("\n")
+    if (exists("rand_plt_mrna")) {
+      cat("##### Enrichment over randomized regions")
+      cat("\n")
+      print(rand_plt_mrna)
+      cat("\n")
+      cat("\n")
+    }
+    cat("##### Conversion specificity in mRNA regions \n")
+    print(conv_plt_mrna)
+    cat("\n")
+    cat("\n")
+  }
+}
+```
+
+### metagene mRNA plots { .tabset}
+
+```{r metagene_mrna, results='asis', echo=FALSE, warning=FALSE, message=FALSE}
+for (sample in samples) {
+  cat("#### ", sample, "\n")
+  
+  annot_peaks <- read_tsv(paste0("annot/", sample, "_clusters_annotated.tsv")) %>%
+    filter(gene_type == "protein_coding" & is.na(mRNA_region) == FALSE)
+  
+  if (nrow(annot_peaks) > 0) {
+    bam <- paste0("PARalyzer/", sample, "_PARalyzer_Utilized.bam")
+    write_tsv(annot_peaks %>%
+            dplyr::select(c(1:3,5,6,4)),
+          "PARalyzer/tmp.bed", col_names = FALSE)
+    system(paste("bedtools intersect -abam", bam, "-b PARalyzer/tmp.bed -s > PARalyzer/tmp.bam"))
+    system("samtools index PARalyzer/tmp.bam")
+    annot_peaks_list <- split(annot_peaks, annot_peaks$mRNA_region)
+    annot_filt <- main_annot %>%
+      .[.$gene_id %in% annot_peaks$gene_id]
+    txdb <- getTxdbFeaturesFromGRanges(annot_filt)
+    common_names <- intersect(names(annot_peaks_list), names(txdb))
+    txdb_uniq <- lapply(txdb, function(x) unique(x)) %>%
+      .[common_names]
+    if ("cds" %in% names(txdb_uniq)) {
+      txdb_uniq$cds <- txdb_uniq$cds[txdb_uniq$cds$gene_name %in% annot_peaks_list$cds$gene_name] %>%
+        .[width(.) > 50]
+    }
+    if ("fiveUTRs" %in% names(txdb_uniq)) {
+      txdb_uniq$fiveUTRs <- txdb_uniq$fiveUTRs[txdb_uniq$fiveUTRs$gene_name %in% annot_peaks_list$fiveUTRs$gene_name] %>%
+        .[width(.) > 50]
+    }
+    if ("threeUTRs" %in% names(txdb_uniq)) {
+      txdb_uniq$threeUTRs <- txdb_uniq$threeUTRs[txdb_uniq$threeUTRs$gene_name %in% annot_peaks_list$threeUTRs$gene_name] %>%
+        .[width(.) > 50]
+    }
+    if ("introns" %in% names(txdb_uniq)) {
+      txdb_uniq$introns <- txdb_uniq$introns[txdb_uniq$introns$gene_name %in% annot_peaks_list$introns$gene_name]%>%
+        .[width(.) > 200]
+      start(txdb_uniq$introns) <- start(txdb_uniq$introns) + 50
+      end(txdb_uniq$introns )<- end(txdb_uniq$introns) - 50
+      txdb_uniq$ss5 <- GRanges(seqnames = seqnames(txdb_uniq$introns),
+                         ranges = IRanges(start = ifelse(strand(txdb_uniq$introns) == "+", 
+                                                         start(txdb_uniq$introns) - 100, 
+                                                         end(txdb_uniq$introns) + 1),
+                                          end = ifelse(strand(txdb_uniq$introns) == "+", 
+                                                       start(txdb_uniq$introns) - 1, 
+                                                       end(txdb_uniq$introns) + 100)),
+                         strand = strand(txdb_uniq$introns))
+      txdb_uniq$ss3 <- GRanges(seqnames = seqnames(txdb_uniq$introns),
+                         ranges = IRanges(start = ifelse(strand(txdb_uniq$introns) == "+", 
+                                                         end(txdb_uniq$introns) + 1, 
+                                                         start(txdb_uniq$introns) -100 ),
+                                          end = ifelse(strand(txdb_uniq$introns) == "+", 
+                                                       end(txdb_uniq$introns) + 100, 
+                                                       start(txdb_uniq$introns) -1)),
+                         strand = strand(txdb_uniq$introns))
+    }
+    txdb_uniq <- txdb_uniq[sapply(txdb_uniq, length) > 0]
+    if (any(c("fiveUTRs", "cds", "threeUTRs") %in% names(txdb_uniq))) {
+      mrna <- txdb_uniq[names(txdb_uniq) %in% c("fiveUTRs", "cds", "threeUTRs")]
+      mg_mrna <- metagene2$new(regions = mrna,
+                               bam_files = bam,
+                               bin_count = 50)
+      mg_mrna2 <- mg_mrna$produce_metagene(facet_by=~region)
+      mg_mrna_df <- mg_mrna$get_data_frame() %>%
+        mutate(group = factor(case_when(region == "cds" ~ "CDS",
+                                        region == "fiveUTRs" ~ "5'UTR",
+                                        TRUE ~ "3'UTR"), 
+                              levels = c("5'UTR", "CDS", "3'UTR")))
+      mrna_plt <- ggplot(mg_mrna_df, aes(x = bin, y = value, color = group)) + 
+        geom_ribbon(aes(ymin = qinf, ymax = qsup, fill = group), color = NA, alpha = 0.2) + 
+        geom_line() +
+        facet_grid(~group) +
+        theme_pubr() +
+        ylab(("coverage")) +
+        scale_color_manual(values = c("5'UTR" = "red", "CDS" = "green", "3'UTR" = "blue")) + 
+        scale_fill_manual(values = c("5'UTR" = "red", "CDS" = "green", "3'UTR" = "blue")) +
+        rremove("legend")
+      saveRDS(mrna_plt, paste0("plots/metagene_mrna_", sample, ".rds"))
+      cat("##### mRNA metagene plot \n")
+      cat("\n")
+      print(mrna_plt)
+      cat("\n")
+      cat("\n")
+    }
+    
+    if ("introns" %in% names(txdb_uniq)) {
+      introns <- txdb_uniq[names(txdb_uniq) %in% c("introns", "ss5", "ss3")]
+      mg_introns <- metagene2$new(regions = introns,
+                     bam_files = bam,
+                     bin_count = 100)
+      mg_introns2 <- mg_introns$produce_metagene(facet_by=~region)
+      mg_introns_df <- mg_introns$get_data_frame() %>%
+        mutate(group = factor(case_when(region == "introns" ~ "intron",
+                                        region == "ss5" ~ "5'boundary",
+                                        TRUE ~ "3'boundary"), 
+                              levels = c("5'boundary", "intron", "3'boundary")))
+      vline_data <- data.frame(
+        group = factor(c("5'boundary", "3'boundary"), levels = c("5'boundary", "intron", "3'boundary")), 
+        xintercept = c(50, 50),
+        label = c("5'ss", "3'ss"))
+      max_y <- max(mg_introns_df$qsup)
+      introns_plt <- ggplot(mg_introns_df, aes(x = bin, y = value, color = group)) + 
+        geom_ribbon(aes(ymin = qinf, ymax = qsup, fill = group), color = NA, alpha = 0.2) + 
+        geom_line() +
+        facet_grid(~group) +
+        theme_pubr() +
+        ylab("coverage") +
+        scale_color_manual(values = c("5'boundary" = "red", "intron" = "green", "3'boundary" = "blue")) +  
+        scale_fill_manual(values = c("5'boundary" = "red", "intron" = "green", "3'boundary" = "blue")) +
+        rremove("legend") +
+        geom_vline(data = vline_data, aes(xintercept = xintercept), linetype = "dashed", color = "black") +
+        geom_text(data = vline_data, aes(x = xintercept, y = .95*max_y, label = label), angle = 90, vjust = -1, hjust = 0, , color = "black")
+      saveRDS(introns_plt, paste0("plots/metagene_introns_", sample, ".rds"))
+      cat("##### Introns metagene  plot \n")
+      cat("\n")
+      print(introns_plt)
+      cat("\n")
+      cat("\n")
+    }
+  system("rm -f PARalyzer/tmp.b*")
+  } else {
+    cat("##### mRNA clusters not detected for ", sample, "\n")
+  }
+}
+```
+
+
+
+```{r generate_missing_plots, echo=FALSE, warning=FALSE, message=FALSE}
+rds_files <- list.files(path = "plots", pattern = ".rds$", full.names = TRUE)
+
+for (file in rds_files) {
+  p <- readRDS(file)
+  ggsave(plot = p, filename = gsub(".rds", ".pdf", file), device = "pdf")
+}
+system("rm -f ./plots/*.rds")
+```
