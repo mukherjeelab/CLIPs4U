@@ -1,0 +1,49 @@
+{
+    #exec and input paths and hardware settings
+    'input_files': "", #(REQUIRED)absolute path(s) must be provided by user in config file, if > 1, comma separated
+    'threads': "",
+    #genome file and genomic annotations
+    'organism' : "", #(OPTIONAL) allowed values are "hs" for human and "mm" for mouse
+    'genome_fasta' : "", #(OPTIONAL) you can specify your own genome file, if not specified GRCh38/GRCm39 primary assembly from gencode v45 will be automatically downloaded
+    'gtf' : "", #(OPTIONAL) you can specify your own gtf file (compatible with genome), if not specified basic annotation for GRCh38/GRCm39 primary assembly from gencode v45 will be automatically downloaded
+    'genome_version' : "", #(OPTIONAL) you can specify your own genome/gtf version; default: GRCh38/GRCm39 primary assembly from gencode v45
+    'annot_rank' : "", #(OPTIONAL) you can specify your own annotation rank file, suggesed when using your own genome; default: parpipe2_dir/annotation/annot_ranks.txt
+    #adapter trimming and reads collapsing
+    'three_prime_adapter' : "", #(REQUIRED!!!) put your 3'adapter sequence
+    'five_prime_adapter' : "", #(REQUIRED!!!) your 5'adapter sequence
+    'nextseq' : False, #(OPTIONAL) put True or 1 if your sequencing run was on NextSeq machine
+    'cutadapt_params1' : "", #(OPTIONAL) - additional cutadapt parameters
+    'cutadapt_params2' : "", #(OPTIONAL) leave empty to ommit this step, if you want to perform second trimming put all cutadapt parameters for 2nd trimming here (including adapters)
+    'umi' : "", #(OPTIONAL) leave empty if you don't have UMIs, for 5' UMIs positive integer equal UMI length, if 3'UMIs - negative integer equal UMI length
+    #removing repetitive elements
+    'rem_rep' : "",  #(OPTIONAL) leave empty to omit this step, put True or 1 if you want to remove repetitive elements
+    'rep_idx' : "", #(OPTIONAL) default: parpipe2_dir/annotation/{organism}/rep_idx
+    'star_rem_reps_params' : "", #(OPTIONAL)
+    #genome alignment
+    'aligner' : "",  #(OPTIONAL) default bowtie, use 'S', 's', 'STAR' or 'star' to switch to STAR
+    'bowtie_index_dir' : "", #(OPTIONAL) default - will be created automatically in your working dir if aligner will be set to bowtie
+    'bowtie_index_params' : "", #(OPTIONAL)
+    'bowtie_map_params' : "", #(OPTIONAL)
+    'star_index_dir' : "", #(OPTIONAL) default - will be created automatically in your working dir if aligner will be set to STAR
+    'star_index_params' : "", #(OPTIONAL)
+    'star_map_params' : "", #(OPTIONAL)
+    #PARalyzer params
+    'paralyzer_memory' : "", #(OPTIONAL)
+    'BANDWIDTH' : "", #(OPTIONAL)
+    'CONVERSION' : "", #(OPTIONAL), possible choices "T>C", "G>A"
+    'MINIMUM_READ_COUNT_PER_GROUP' : "", #(OPTIONAL),
+    'MINIMUM_READ_COUNT_PER_CLUSTER' : "", #(OPTIONAL)
+    'MINIMUM_READ_COUNT_FOR_KDE' : "", #(OPTIONAL)
+    'MINIMUM_CLUSTER_SIZE' : "", #(OPTIONAL)
+    'MINIMUM_CONVERSION_LOCATIONS_FOR_CLUSTER' : "", #(OPTIONAL)
+    'MINIMUM_CONVERSION_COUNT_FOR_CLUSTER' : "", #(OPTIONAL)
+    'MINIMUM_READ_COUNT_FOR_CLUSTER_INCLUSION' : "", #(OPTIONAL)
+    'MINIMUM_READ_LENGTH' : "", #(OPTIONAL)
+    'MAXIMUM_NUMBER_OF_NON_CONVERSION_MISMATCHES' : "", #(OPTIONAL)
+    'signal_extension' : "", ##(OPTIONAL) one of 'EXTEND_BY_READ', 'HAFNER_APPROACH', 'ADDITIONAL_NUCLEOTIDES_BEYOND_SIGNAL', default "EXTEND_BY_READ"
+    'ADDITIONAL_NUCLEOTIDES_BEYOND_SIGNAL' : "", #only valid when signal_extension : 'ADDITIONAL_NUCLEOTIDES_BEYOND_SIGNAL'
+    'use_pcr_duplicates' : "", #(OPTIONAL) change to True to force PARalyzer to treat pcr duplicates as individual reads (will increase number of clusters, but also false positives)
+    #motif enrichment params
+    'motif_enrichment_method' : "", #(OPTIONAL), possible choices "meme", "dreme", "streme"; default "meme"
+    'motif_enrichment_params' : "", #(OPTIONAL); be aware that some prameters are specific for enrichment method chosen
+}
