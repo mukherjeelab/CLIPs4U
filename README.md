@@ -42,7 +42,7 @@ The environment then needs to be activated in order to run CLIPs4U:
 conda activate clips4u
 ```
 
-We also plan to provide Docker image soon.
+If you prefere working with Docker, CLIPS4U docker image can be found [here](https://hub.docker.com/repository/docker/msajek/clips4u/general) 
 
 ## Preparing configuration file
 DETAILS ABOUT CONFIGURATION FILE CAN BE FOUND IN config/README.md file
@@ -70,7 +70,44 @@ Steps:
 
 
 ## Usage
-First clone the repository using: 
+First, install git-lfs, to ensure that test data will be correctly downloaded.
+Dependent on your system git-lfs can be installed using the following commands:
+###Ubuntu/Debian
+```
+sudo apt-get update
+sudo apt-get install git-lfs
+```
+###Fedora
+```
+sudo dnf update
+sudo dnf install git-lfs
+```
+###CentOS7/RHEL7
+```
+sudo yum install epel-release
+sudo yum install git-lfs
+```
+###CentOS8/RHEL8
+```
+sudo dnf install epel-release
+sudo dnf install git-lfs
+```
+###openSUSE
+```
+sudo zypper refresh
+sudo zypper install git-lfs
+```
+###Arch linux
+```
+sudo pacman -S git-lfs
+```
+
+Then initialize git-lfs using:
+```
+git lfs install
+```
+
+Second clone the repository using: 
 ```
 gh repo clone mukherjeelab/CLIPs4U
 ```
@@ -79,19 +116,34 @@ or:
 git clone https://github.com/mukherjeelab/CLIPs4U.git
 ```
 or just download zipped package and unpack it.
-Second, create directory for your project, e.g.:
+
+Ensure that `ZFP36.fq.gz` file in your `test_data` directory has 242MB. After navigating to your CLIPs4U directory and typing `ls -lh test_data` you should have output similar to the one presented below:
+```
+total 242M
+-rw-r----- 1 marcin marcin 242M lip 11 20:26 ZFP36.fq.gz
+-rw-r----- 1 marcin marcin 3,7K lip 12 12:46 ZFP36.yaml
+```
+If for some reasons your output looks like one below:
+```
+total 4,5K
+-rw-r----- 1 sajekmar mukherjee  134 07-12 14:09 ZFP36.fq.gz
+-rw-r----- 1 sajekmar mukherjee 3,7K 07-12 14:09 ZFP36.yaml
+```
+and ZFP36.fq.gz has only 134 B download it manually from [repository](https://github.com/mukherjeelab/CLIPs4U/blob/main/test_data/ZFP36.fq.gz) and move to `/path/to/CLIPs4U/test_data`.
+
+Third, create directory for your project, e.g.:
 ```
 mkdir my_parclip_dir
 ```
 
-Third, prepare your config YAML file. 
+Fourth, prepare your config YAML file. 
 It can be located anywhere, but if you put it in your directory it will be automatically detected.
 Parameters not specified in your config file will be set to default values using default_config file.
 
 Please note, that parameters that will be shared between all analyses might be put in the (clips4u)/config/default_config.yaml.
 File default_config.yaml contains predefined default parameters, and you are free to change them. 
 
-Fourth, create and activate conda environment as described above.
+Fifth, create and activate conda environment as described above.
 
 Running analysis
 specify clips4u snakefile using flag "--snakefile",
