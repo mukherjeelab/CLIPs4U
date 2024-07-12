@@ -116,7 +116,7 @@ Section from default config is shown below.
     'star_rem_reps_params' : "--runMode alignReads --genomeLoad NoSharedMemory --alignEndsType EndToEnd --outSAMunmapped Within --outFilterMultimapNmax 30 --outFilterMultimapScoreRange 1 --outSAMtype BAM Unsorted --outFilterType BySJout --outBAMcompression 10 --outReadsUnmapped Fastx --outFilterScoreMin 10 --outSAMattrRGline ID:foo --outSAMattributes All --outSAMmode Full", #(OPTIONAL)
 ```
 
-Genome alignment section of the configuration file contains a parameters list passed to  aligner. Default aligner is [bowtie](https://bowtie-bio.sourceforge.net/index.shtml). User can switch aligner to [STAR](https://raw.githubusercontent.com/alexdobin/STAR/master/doc/STARmanual.pdf) by filling `aligenr` field with one of `"STAR"`, `"star"`, `"S"` or `"s"`. Remaining fields contain paths to bowtie or STAR indexes (generated automatically for selected aligner if left empty) and aligner parameters (filled with default settings when empty). 
+Genome alignment section of the configuration file contains a parameters list passed to  aligner. Default aligner is [bowtie](https://bowtie-bio.sourceforge.net/index.shtml). User can switch aligner to [STAR](https://raw.githubusercontent.com/alexdobin/STAR/master/doc/STARmanual.pdf) by filling `aligner` field with one of `"STAR"`, `"star"`, `"S"` or `"s"`. Remaining fields contain paths to bowtie or STAR indexes (generated automatically for selected aligner if left empty) and aligner parameters (filled with default settings when empty). 
 
 Section from default config is shown below.
 ```
