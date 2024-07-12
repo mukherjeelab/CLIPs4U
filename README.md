@@ -187,7 +187,7 @@ Steps:
 ## Usage
 First clone the repository using: 
 ```
-gh repo [clone mukherjeelab/clips4u](https://github.com/mukherjeelab/CLIPs4U.git)
+gh repo clone mukherjeelab/CLIPs4U
 ```
 or:
 ```
