@@ -1,0 +1,7 @@
+{
+    "genome": "/media/marcin/Elements/JMB_presub/CLIPs4U/genome/GRCh38.primary_assembly.genome.fa",
+    "annotation": "/media/marcin/Elements/JMB_presub/CLIPs4U/genome/gencode.v45.primary_assembly.basic.annotation.gtf",
+    "genome_2bit": "/media/marcin/Elements/JMB_presub/CLIPs4U/genome/GRCh38.primary_assembly.genome.2bit",
+    "main_annot_rds": "/media/marcin/Elements/JMB_presub/CLIPs4U/genome/main_annotation.rds",
+    "bowtie_index": "/media/marcin/Elements/JMB_presub/CLIPs4U/bowtie_index/GRCh38.primary_assembly.genome/45"
+}

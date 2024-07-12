@@ -167,6 +167,7 @@ Section from default config is shown below.
 
 The example directed acyclic graph for the workflow is show below.
 
+![DAG](img/dag.png)
 
 Steps:
 * downloading genome fasta and gtf files, prepare genome 2bit file, `main_annotation.rds` file and index for selected aligner (performs only once for selected genome, can be omitted if user specify paths to files in `config.yaml`)
